@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PUROMEXA — Meme Generator</title>
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --green: #39ff14;
+  --bg: #0a0a0a;
+  --surface: #111;
+  --surface2: #1a1a1a;
+  --border: #252525;
+  --text: #e0e0e0;
+  --muted: #555;
+  --font: 'Satoshi', sans-serif;
+}
+html, body {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+}
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1rem 2rem;
+  border-bottom: 1px solid var(--border);
+}
+.logo {
+  font-family: 'Courier New', monospace;
+  font-size: 1.2rem; font-weight: 700;
+  color: var(--green); letter-spacing: 0.1em;
+  text-decoration: none;
+}
+.logo span { color: #fff; }
+.sub { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.2em; text-transform: uppercase; }
+
+.container { max-width: 1080px; margin: 0 auto; padding: 2rem 1.5rem; }
+h1 { font-size: clamp(1.4rem, 3vw, 2.2rem); color: var(--green); letter-spacing: -0.02em; margin-bottom: 0.2rem; }
+.tagline { color: var(--muted); font-size: 0.85rem; margin-bottom: 2rem; }
+
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 1.5rem;
+  align-items: start;
+}
+@media (max-width: 720px) { .layout { grid-template-columns: 1fr; } }
+
+/* Upload zone */
+.upload-zone {
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  min-height: 420px;
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 0.8rem;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  position: relative; overflow: hidden;
+}
+.upload-zone:hover, .upload-zone.dragover {
+  border-color: var(--green);
+  background: #0f1a0f;
+}
+.upload-zone canvas {
+  position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%;
+  object-fit: contain;
+  display: none;
+}
+.upload-zone.has-image canvas { display: block; }
+.upload-zone.has-image .upload-hint { display: none; }
+.upload-hint { text-align: center; pointer-events: none; }
+.upload-icon { font-size: 3rem; margin-bottom: 0.5rem; opacity: 0.4; }
+.upload-hint p { color: var(--muted); font-size: 0.85rem; line-height: 1.6; }
+.upload-hint strong { color: var(--text); }
+input[type="file"] { display: none; }
+
+/* Controls panel */
+.controls {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.5rem;
+  display: flex; flex-direction: column; gap: 1.1rem;
+}
+.section-label {
+  font-size: 0.65rem; text-transform: uppercase;
+  letter-spacing: 0.2em; color: var(--muted);
+  margin-bottom: 0.2rem;
+}
+label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.35rem; }
+input[type="text"] {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 0.6rem 0.8rem;
+  font-family: var(--font);
+  font-size: 0.9rem;
+  transition: border-color 0.2s;
+}
+input[type="text"]:focus { outline: none; border-color: var(--green); }
+input[type="range"] {
+  width: 100%; cursor: pointer;
+  accent-color: var(--green);
+  margin-top: 0.2rem;
+}
+select {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 0.6rem 0.8rem;
+  font-family: var(--font);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+select:focus { outline: none; border-color: var(--green); }
+
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+
+hr { border: none; border-top: 1px solid var(--border); }
+
+.btn {
+  width: 100%; padding: 0.8rem;
+  border: none; border-radius: 6px;
+  font-family: var(--font); font-size: 0.85rem;
+  font-weight: 700; cursor: pointer;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  transition: opacity 0.2s, transform 0.1s;
+}
+.btn:active { transform: scale(0.98); }
+.btn-primary { background: var(--green); color: #000; }
+.btn-primary:hover { opacity: 0.85; }
+.btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:hover { border-color: var(--green); color: var(--green); }
+.btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.hint-small { font-size: 0.7rem; color: var(--muted); text-align: center; }
+
+footer {
+  text-align: center; padding: 2rem;
+  font-size: 0.75rem; color: var(--muted);
+  border-top: 1px solid var(--border); margin-top: 3rem;
+}
+footer a { color: var(--green); text-decoration: none; }
+footer a:hover { opacity: 0.7; }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="logo" href="https://bore.lol" target="_blank" rel="noopener">BORE<span>.LOL</span></a>
+  <span class="sub">Meme Generator</span>
+</header>
+
+<div class="container">
+  <h1>MEME GENERATOR</h1>
+  <p class="tagline">Sube tu imagen, escribe el texto, descarga el meme. Todo en tu navegador.</p>
+
+  <div class="layout">
+
+    <!-- Canvas / Upload -->
+    <div>
+      <input type="file" id="fileInput" accept="image/*">
+      <div class="upload-zone" id="uploadZone">
+        <canvas id="memeCanvas"></canvas>
+        <div class="upload-hint">
+          <div class="upload-icon">📂</div>
+          <p><strong>Haz clic para subir una imagen</strong><br>o arrastra y suelta aquí<br><br>JPG, PNG, GIF, WEBP</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+
+      <div>
+        <p class="section-label">Imagen</p>
+        <button class="btn btn-secondary" id="uploadBtn">📁 Subir imagen</button>
+      </div>
+
+      <hr>
+
+      <div>
+        <p class="section-label">Texto superior</p>
+        <input type="text" id="topText" placeholder="TOP TEXT" maxlength="80">
+      </div>
+
+      <div>
+        <p class="section-label">Texto inferior</p>
+        <input type="text" id="bottomText" placeholder="BOTTOM TEXT" maxlength="80">
+      </div>
+
+      <hr>
+
+      <div>
+        <p class="section-label">Estilo de texto</p>
+        <div class="row">
+          <div>
+            <label>Fuente</label>
+            <select id="fontStyle">
+              <option value="Impact">Impact</option>
+              <option value="Arial Black">Arial Black</option>
+              <option value="Courier New">Courier New</option>
+              <option value="Georgia">Georgia</option>
+            </select>
+          </div>
+          <div>
+            <label>Color</label>
+            <select id="fontColor">
+              <option value="white">Blanco</option>
+              <option value="#39ff14">Verde neón</option>
+              <option value="black">Negro</option>
+              <option value="yellow">Amarillo</option>
+              <option value="red">Rojo</option>
+              <option value="#00ffff">Cyan</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label>Tamaño: <strong id="fontSizeVal">52</strong>px</label>
+        <input type="range" id="fontSize" min="20" max="100" value="52">
+      </div>
+
+      <div>
+        <label>Posición texto superior: <strong id="topPosVal">10</strong>%</label>
+        <input type="range" id="topPos" min="2" max="45" value="10">
+      </div>
+
+      <div>
+        <label>Posición texto inferior: <strong id="botPosVal">90</strong>%</label>
+        <input type="range" id="botPos" min="55" max="98" value="90">
+      </div>
+
+      <div>
+        <label>
+          <input type="checkbox" id="shadowToggle" checked style="accent-color:var(--green);margin-right:0.4rem;">
+          Sombra en texto
+        </label>
+      </div>
+
+      <hr>
+
+      <button class="btn btn-primary" id="downloadBtn" disabled>⬇ Descargar PNG</button>
+      <p class="hint-small" id="hint">Sube una imagen para comenzar</p>
+
+    </div>
+  </div>
+</div>
+
+<footer>
+  <a href="https://bore.lol" target="_blank" rel="noopener">bore.lol</a> &mdash;
+  <a href="https://boreone.tumblr.com" target="_blank" rel="noopener">tumblr</a> &mdash;
+  <a href="https://twitter.com/boreuno" target="_blank" rel="noopener">@boreuno</a>
+</footer>
+
+<script>
+const fileInput   = document.getElementById('fileInput');
+const uploadZone  = document.getElementById('uploadZone');
+const canvas      = document.getElementById('memeCanvas');
+const ctx         = canvas.getContext('2d');
+const downloadBtn = document.getElementById('downloadBtn');
+const hint        = document.getElementById('hint');
+
+let loadedImage = null;
+
+// ---- Upload triggers ----
+document.getElementById('uploadBtn').addEventListener('click', () => fileInput.click());
+uploadZone.addEventListener('click', () => { if (!loadedImage) fileInput.click(); });
+
+fileInput.addEventListener('change', e => {
+  if (e.target.files[0]) loadImage(e.target.files[0]);
+});
+
+// Drag & drop
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) loadImage(file);
+});
+
+// Paste image
+document.addEventListener('paste', e => {
+  const items = e.clipboardData.items;
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      loadImage(item.getAsFile());
+      break;
+    }
+  }
+});
+
+function loadImage(file) {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      loadedImage = img;
+      canvas.width  = img.width;
+      canvas.height = img.height;
+      uploadZone.classList.add('has-image');
+      downloadBtn.disabled = false;
+      hint.textContent = 'Listo para descargar ✓';
+      render();
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ---- Controls ----
+function val(id)  { return document.getElementById(id).value; }
+function checked(id) { return document.getElementById(id).checked; }
+
+['topText','bottomText','fontStyle','fontColor','fontSize','topPos','botPos','shadowToggle'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    if (id === 'fontSize') document.getElementById('fontSizeVal').textContent = val('fontSize');
+    if (id === 'topPos')   document.getElementById('topPosVal').textContent   = val('topPos');
+    if (id === 'botPos')   document.getElementById('botPosVal').textContent   = val('botPos');
+    render();
+  });
+});
+
+// ---- Render ----
+function wrapText(text, maxWidth) {
+  const words = text.toUpperCase().split(' ');
+  const lines = [];
+  let line = '';
+  words.forEach(word => {
+    const test = line ? line + ' ' + word : word;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      lines.push(line); line = word;
+    } else { line = test; }
+  });
+  if (line) lines.push(line);
+  return lines;
+}
+
+function drawText(text, yPct, isBottom) {
+  if (!text.trim()) return;
+  const size      = parseInt(val('fontSize'));
+  const color     = val('fontColor');
+  const font      = val('fontStyle');
+  const shadow    = checked('shadowToggle');
+  const maxWidth  = canvas.width * 0.92;
+  const lineH     = size * 1.18;
+
+  ctx.font      = `900 ${size}px ${font}, Impact, sans-serif`;
+  ctx.textAlign = 'center';
+
+  const lines = wrapText(text, maxWidth);
+  const totalH = lines.length * lineH;
+  let baseY = (canvas.height * yPct / 100);
+  if (isBottom) baseY = baseY - totalH + size;
+
+  lines.forEach((line, i) => {
+    const y = baseY + i * lineH;
+
+    if (shadow) {
+      ctx.shadowColor   = 'rgba(0,0,0,0.85)';
+      ctx.shadowBlur    = size * 0.18;
+      ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 2;
+    }
+
+    // Stroke outline
+    ctx.lineWidth   = size * 0.13;
+    ctx.lineJoin    = 'round';
+    ctx.strokeStyle = color === 'black' ? 'white' : 'black';
+    ctx.strokeText(line, canvas.width / 2, y);
+
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur  = 0;
+    ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+
+    ctx.fillStyle = color;
+    ctx.fillText(line, canvas.width / 2, y);
+  });
+
+  ctx.textAlign = 'left';
+}
+
+function render() {
+  if (!loadedImage) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(loadedImage, 0, 0);
+  drawText(val('topText'), parseInt(val('topPos')), false);
+  drawText(val('bottomText'), parseInt(val('botPos')), true);
+}
+
+// ---- Download ----
+downloadBtn.addEventListener('click', () => {
+  const a = document.createElement('a');
+  a.download = 'puromexa-meme.png';
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+});
+</script>
+</body>
+</html>
