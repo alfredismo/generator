@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PUROMEXA — Meme Generator</title>
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --green: #39ff14;
+    --bg: #0a0a0a;
+    --surface: #111111;
+    --surface2: #1a1a1a;
+    --border: #222;
+    --text: #e0e0e0;
+    --text-muted: #555;
+    --font: 'Satoshi', sans-serif;
+  }
+  html, body { min-height: 100vh; background: var(--bg); color: var(--text); font-family: var(--font); }
+
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1rem 2rem; border-bottom: 1px solid var(--border);
+  }
+  header .logo {
+    font-family: 'Courier New', monospace;
+    font-size: 1.3rem; font-weight: 700;
+    color: var(--green);
+    letter-spacing: 0.08em;
+    text-decoration: none;
+  }
+  header .sub { font-size: 0.75rem; color: var(--text-muted); letter-spacing: 0.15em; text-transform: uppercase; }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+  h1 { font-size: clamp(1.5rem, 4vw, 2.5rem); color: var(--green); letter-spacing: -0.02em; margin-bottom: 0.25rem; }
+  .tagline { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 2.5rem; }
+
+  .layout { display: grid; grid-template-columns: 1fr 340px; gap: 2rem; }
+  @media (max-width: 768px) { .layout { grid-template-columns: 1fr; } }
+
+  /* Canvas area */
+  .canvas-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    min-height: 400px; position: relative;
+  }
+  canvas { max-width: 100%; display: block; border-radius: 4px; }
+
+  /* Controls */
+  .controls {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    display: flex; flex-direction: column; gap: 1.2rem;
+  }
+  .controls h2 { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-muted); }
+
+  label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.4rem; letter-spacing: 0.05em; }
+  input[type="text"], input[type="range"], select {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 6px; padding: 0.6rem 0.8rem;
+    font-family: var(--font); font-size: 0.9rem;
+    transition: border-color 0.2s;
+  }
+  input[type="text"]:focus, select:focus { outline: none; border-color: var(--green); }
+
+  input[type="range"] { padding: 0.3rem 0; cursor: pointer; accent-color: var(--green); }
+
+  .templates-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem;
+  }
+  .tpl-btn {
+    background: var(--surface2); border: 2px solid var(--border);
+    border-radius: 6px; overflow: hidden; cursor: pointer;
+    transition: border-color 0.2s, transform 0.1s;
+    aspect-ratio: 1; padding: 0;
+  }
+  .tpl-btn:hover { border-color: var(--green); transform: scale(1.03); }
+  .tpl-btn.active { border-color: var(--green); }
+  .tpl-btn canvas { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .tpl-label { font-size: 0.65rem; color: var(--text-muted); text-align: center; padding: 0.2rem; line-height: 1.2; }
+
+  .btn-download {
+    width: 100%; padding: 0.85rem;
+    background: var(--green); color: #000;
+    border: none; border-radius: 6px;
+    font-family: var(--font); font-size: 0.9rem; font-weight: 700;
+    cursor: pointer; letter-spacing: 0.05em; text-transform: uppercase;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+  .btn-download:hover { opacity: 0.85; transform: translateY(-1px); }
+  .btn-download:active { transform: translateY(0); }
+
+  .divider { border: none; border-top: 1px solid var(--border); }
+
+  footer {
+    text-align: center; padding: 2rem;
+    font-size: 0.75rem; color: var(--text-muted);
+    border-top: 1px solid var(--border); margin-top: 3rem;
+  }
+  footer a { color: var(--green); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="logo" href="https://bore.lol" target="_blank">BORE.LOL</a>
+  <span class="sub">Meme Generator — PUROMEXA</span>
+</header>
+
+<div class="container">
+  <h1>MEME GENERATOR</h1>
+  <p class="tagline">Elige una plantilla, escribe tu texto, descarga el meme.</p>
+
+  <div class="layout">
+    <!-- Canvas -->
+    <div class="canvas-wrap">
+      <canvas id="memeCanvas" width="600" height="600"></canvas>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <h2>Plantillas</h2>
+      <div class="templates-grid" id="templatesGrid"></div>
+
+      <hr class="divider">
+      <h2>Texto</h2>
+
+      <div>
+        <label for="topText">Texto superior</label>
+        <input type="text" id="topText" placeholder="TOP TEXT" maxlength="60">
+      </div>
+      <div>
+        <label for="bottomText">Texto inferior</label>
+        <input type="text" id="bottomText" placeholder="BOTTOM TEXT" maxlength="60">
+      </div>
+
+      <hr class="divider">
+      <h2>Estilo</h2>
+
+      <div>
+        <label for="fontSize">Tamaño de fuente: <span id="fontSizeVal">52</span>px</label>
+        <input type="range" id="fontSize" min="24" max="90" value="52">
+      </div>
+
+      <div>
+        <label for="fontColor">Color de texto</label>
+        <select id="fontColor">
+          <option value="white">Blanco</option>
+          <option value="#39ff14">Verde neón</option>
+          <option value="black">Negro</option>
+          <option value="yellow">Amarillo</option>
+          <option value="red">Rojo</option>
+        </select>
+      </div>
+
+      <hr class="divider">
+      <button class="btn-download" id="downloadBtn">⬇ Descargar PNG</button>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <a href="https://bore.lol" target="_blank">bore.lol</a> &mdash;
+  <a href="https://boreone.tumblr.com" target="_blank">tumblr</a> &mdash;
+  <a href="https://twitter.com/boreuno" target="_blank">@boreuno</a>
+</footer>
+
+<script>
+const canvas = document.getElementById('memeCanvas');
+const ctx = canvas.getContext('2d');
+
+// --- Template definitions (drawn procedurally with canvas) ---
+const templates = [
+  {
+    id: 'drake',
+    label: 'Drake',
+    draw: (c) => {
+      const x = c.getContext('2d');
+      x.fillStyle = '#1a1a2e'; x.fillRect(0,0,c.width,c.height);
+      // Top panel - NO
+      x.fillStyle = '#16213e'; x.fillRect(0,0,c.width,c.height/2);
+      x.fillStyle = '#e94560'; x.font = 'bold 80px sans-serif';
+      x.fillText('🙅', c.width*0.08, c.height*0.32);
+      x.fillStyle = '#aaa'; x.font = 'bold 22px sans-serif';
+      x.fillText('NO', c.width*0.62, c.height*0.28);
+      // Bottom panel - YES
+      x.fillStyle = '#0f3460'; x.fillRect(0,c.height/2,c.width,c.height/2);
+      x.fillStyle = '#e94560'; x.font = 'bold 80px sans-serif';
+      x.fillText('👉', c.width*0.08, c.height*0.75);
+      x.fillStyle = '#fff'; x.font = 'bold 22px sans-serif';
+      x.fillText('SÍ', c.width*0.62, c.height*0.72);
+    }
+  },
+  {
+    id: 'distracted',
+    label: 'Distraído',
+    draw: (c) => {
+      const x = c.getContext('2d');
+      x.fillStyle = '#2d1b69'; x.fillRect(0,0,c.width,c.height);
+      x.fillStyle = '#ff6b6b'; x.font = 'bold 100px sans-serif';
+      x.fillText('😵', c.width*0.35, c.height*0.42);
+      x.fillStyle = '#ffd93d'; x.font = 'bold 60px sans-serif';
+      x.fillText('👀', c.width*0.05, c.height*0.42);
+      x.fillStyle = '#6bcb77'; x.font = 'bold 55px sans-serif';
+      x.fillText('💎', c.width*0.7, c.height*0.72);
+      // Labels
+      x.fillStyle = 'rgba(0,0,0,0.6)';
+      x.fillRect(0, c.height*0.78, c.width/2-10, 40);
+      x.fillRect(c.width/2+10, c.height*0.1, c.width/2-10, 40);
+      x.fillRect(c.width*0.6, c.height*0.78, c.width*0.38, 40);
+      x.fillStyle = '#fff'; x.font = '14px sans-serif'; x.textAlign = 'center';
+      x.fillText('NOVIO', c.width*0.22, c.height*0.803);
+      x.fillText('NOVIA', c.width*0.75, c.height*0.133);
+      x.fillText('COSA NUEVA', c.width*0.79, c.height*0.803);
+      x.textAlign = 'left';
+    }
+  },
+  {
+    id: 'twobuttons',
+    label: 'Dos Botones',
+    draw: (c) => {
+      const x = c.getContext('2d');
+      x.fillStyle = '#1e1e2e'; x.fillRect(0,0,c.width,c.height);
+      // Person sweating
+      x.fillStyle = '#f38ba8'; x.font = '120px sans-serif';
+      x.fillText('😰', c.width*0.3, c.height*0.75);
+      // Two buttons
+      x.fillStyle = '#a6e3a1';
+      x.fillRect(c.width*0.06, c.height*0.1, c.width*0.35, 60);
+      x.fillRect(c.width*0.06, c.height*0.28, c.width*0.35, 60);
+      x.fillStyle = '#1e1e2e'; x.font = 'bold 16px sans-serif'; x.textAlign = 'center';
+      x.fillText('OPCIÓN A', c.width*0.245, c.height*0.147);
+      x.fillText('OPCIÓN B', c.width*0.245, c.height*0.327);
+      x.textAlign = 'left';
+      // Arrow
+      x.fillStyle = '#cba6f7'; x.font = 'bold 40px sans-serif';
+      x.fillText('👆', c.width*0.43, c.height*0.32);
+    }
+  },
+  {
+    id: 'stonks',
+    label: 'Stonks',
+    draw: (c) => {
+      const x = c.getContext('2d');
+      x.fillStyle = '#0d1117'; x.fillRect(0,0,c.width,c.height);
+      // Grid
+      x.strokeStyle = '#21262d'; x.lineWidth = 1;
+      for(let i=0;i<10;i++){
+        x.beginPath(); x.moveTo(0,i*c.height/10); x.lineTo(c.width,i*c.height/10); x.stroke();
+        x.beginPath(); x.moveTo(i*c.width/10,0); x.lineTo(i*c.width/10,c.height); x.stroke();
+      }
+      // Arrow going up
+      x.strokeStyle = '#39ff14'; x.lineWidth = 4;
+      x.beginPath();
+      x.moveTo(c.width*0.05, c.height*0.8);
+      x.lineTo(c.width*0.25, c.height*0.65);
+      x.lineTo(c.width*0.45, c.height*0.7);
+      x.lineTo(c.width*0.65, c.height*0.4);
+      x.lineTo(c.width*0.85, c.height*0.15);
+      x.stroke();
+      // Person
+      x.font = '90px sans-serif';
+      x.fillText('🤵', c.width*0.55, c.height*0.75);
+      x.fillStyle = '#39ff14'; x.font = 'bold 28px monospace';
+      x.fillText('STONKS', c.width*0.06, c.height*0.93);
+    }
+  },
+  {
+    id: 'change',
+    label: 'Cambio',
+    draw: (c) => {
+      const x = c.getContext('2d');
+      x.fillStyle = '#1a0533'; x.fillRect(0,0,c.width,c.height);
+      // Butterfly person
+      x.font = '100px sans-serif';
+      x.fillText('🦋', c.width*0.35, c.height*0.45);
+      x.fillText('🤔', c.width*0.1, c.height*0.6);
+      // Sign / question box
+      x.fillStyle = 'rgba(255,255,255,0.1)';
+      x.fillRect(c.width*0.45, c.height*0.1, c.width*0.5, 70);
+      x.fillStyle = '#fff'; x.font = 'bold 15px sans-serif'; x.textAlign = 'center';
+      x.fillText('¿ES ESTO...?', c.width*0.7, c.height*0.155);
+      x.textAlign = 'left';
+    }
+  },
+  {
+    id: 'puromexa',
+    label: 'PUROMEXA',
+    draw: (c) => {
+      const x = c.getContext('2d');
+      // PUROMEXA branded template
+      x.fillStyle = '#000'; x.fillRect(0,0,c.width,c.height);
+      // Border
+      x.strokeStyle = '#39ff14'; x.lineWidth = 3;
+      x.strokeRect(8,8,c.width-16,c.height-16);
+      // Logo text
+      x.fillStyle = '#39ff14';
+      x.font = 'bold 48px monospace';
+      x.textAlign = 'center';
+      x.fillText('PUROMEXA', c.width/2, 80);
+      // Decorative lines
+      x.strokeStyle = '#1a3d1a'; x.lineWidth = 1;
+      for(let i=0;i<20;i++){
+        x.beginPath();
+        x.moveTo(0, c.height*0.12 + i*(c.height*0.85/20));
+        x.lineTo(c.width, c.height*0.12 + i*(c.height*0.85/20));
+        x.stroke();
+      }
+      // Center emoji
+      x.font = '120px sans-serif';
+      x.fillText('📡', c.width/2 - 60, c.height*0.68);
+      x.textAlign = 'left';
+    }
+  }
+];
+
+// Active template
+let activeTemplate = 0;
+let currentImg = null;
+let topText = '';
+let bottomText = '';
+let fontSize = 52;
+let fontColor = 'white';
+
+// Build thumbnail grid
+const grid = document.getElementById('templatesGrid');
+templates.forEach((tpl, i) => {
+  const wrap = document.createElement('div');
+  wrap.style.cursor = 'pointer';
+
+  const btn = document.createElement('div');
+  btn.className = 'tpl-btn' + (i===0?' active':'');
+  btn.dataset.idx = i;
+
+  const tc = document.createElement('canvas');
+  tc.width = 120; tc.height = 120;
+  tpl.draw(tc);
+  btn.appendChild(tc);
+
+  const lbl = document.createElement('div');
+  lbl.className = 'tpl-label';
+  lbl.textContent = tpl.label;
+
+  wrap.appendChild(btn);
+  wrap.appendChild(lbl);
+  wrap.addEventListener('click', () => {
+    document.querySelectorAll('.tpl-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeTemplate = i;
+    currentImg = null;
+    render();
+  });
+  grid.appendChild(wrap);
+});
+
+function drawMemeText(text, yPos, isBottom) {
+  if (!text.trim()) return;
+  const size = parseInt(fontSize);
+  ctx.font = `900 ${size}px Impact, Arial Black, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.lineWidth = size * 0.12;
+  ctx.strokeStyle = 'black';
+  ctx.lineJoin = 'round';
+
+  const maxW = canvas.width * 0.9;
+  const words = text.toUpperCase().split(' ');
+  const lines = [];
+  let current = '';
+
+  words.forEach(word => {
+    const test = current ? current + ' ' + word : word;
+    if (ctx.measureText(test).width > maxW && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = test;
+    }
+  });
+  if (current) lines.push(current);
+
+  const lineH = size * 1.15;
+  let startY;
+  if (isBottom) {
+    startY = canvas.height - 20 - (lines.length - 1) * lineH;
+  } else {
+    startY = size + 10;
+  }
+
+  lines.forEach((line, idx) => {
+    const y = startY + idx * lineH;
+    ctx.strokeText(line, canvas.width / 2, y);
+    ctx.fillStyle = fontColor;
+    ctx.fillText(line, canvas.width / 2, y);
+  });
+
+  ctx.textAlign = 'left';
+}
+
+function render() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (currentImg) {
+    ctx.drawImage(currentImg, 0, 0, canvas.width, canvas.height);
+  } else {
+    templates[activeTemplate].draw(canvas);
+  }
+
+  drawMemeText(topText, 0, false);
+  drawMemeText(bottomText, 0, true);
+}
+
+// Events
+document.getElementById('topText').addEventListener('input', e => { topText = e.target.value; render(); });
+document.getElementById('bottomText').addEventListener('input', e => { bottomText = e.target.value; render(); });
+document.getElementById('fontSize').addEventListener('input', e => {
+  fontSize = e.target.value;
+  document.getElementById('fontSizeVal').textContent = fontSize;
+  render();
+});
+document.getElementById('fontColor').addEventListener('change', e => { fontColor = e.target.value; render(); });
+
+document.getElementById('downloadBtn').addEventListener('click', () => {
+  const link = document.createElement('a');
+  link.download = 'puromexa-meme.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+});
+
+// Init
+render();
+</script>
+</body>
+</html>
